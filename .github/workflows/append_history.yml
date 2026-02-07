@@ -3,29 +3,36 @@ name: Weekly Validated History Append
 on:
   workflow_dispatch:   # manual trigger (safe)
   schedule:
-    - cron: '0 2 * * 0'   # Every Sunday at 02:00 UTC
+    - cron: "0 2 * * 0"   # Every Sunday at 02:00 UTC
 
 jobs:
   append-history:
     runs-on: ubuntu-latest
 
     steps:
-      # Get latest code
+      # Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Python
+      #  Set up Python
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      # Install dependencies (pip-based, consistent with project)
+      # Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      #  Run batch validated history append
+      #  Download results.csv artifact
+      - name: Download results artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: results-csv
+          path: data
+
+      # Append validated history
       - name: Append validated history
         run: python -m scripts.append_validated_history
