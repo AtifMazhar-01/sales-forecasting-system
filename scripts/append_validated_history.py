@@ -1,6 +1,11 @@
 import pandas as pd
 from src.config.settings import ASSET_CONFIG
 from src.data.history_loader import load_historical_data
+import os
+
+if not os.path.exists(RESULTS_FILE):
+    print("No results.csv found. Skipping history append.")
+    return
 
 
 RESULTS_FILE = "data/results.csv"
