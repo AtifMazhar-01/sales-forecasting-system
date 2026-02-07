@@ -1,20 +1,42 @@
+import os
 import requests
 import pandas as pd
-from datetime import datetime
+from dotenv import load_dotenv
 
-def fetch_daily_prices():
-    """
-    Fetch daily commodity prices from API
-    (placeholder – real API logic comes next step)
-    """
-    print("Fetching daily prices...")
+load_dotenv()
 
-    # Dummy data for now (structure only)
-    data = {
-        "date": [datetime.today().strftime("%Y-%m-%d")],
-        "price": [100.0]
+API_KEY = os.getenv("API_NINJAS_KEY")
+BASE_URL = "https://api.api-ninjas.com/v1/commodityprice"
+
+
+def fetch_daily_prices(live_symbol):
+    """
+    Fetch latest price for a given commodity symbol from API-Ninjas.
+    Returns DataFrame with columns: date, price
+    """
+    headers = {
+        "X-Api-Key": API_KEY
     }
 
-    df = pd.DataFrame(data)
-    return df
+    params = {
+        "name": live_symbol
+    }
 
+    response = requests.get(BASE_URL, headers=headers, params=params)
+
+    # Debug visibility (important while learning)
+    if response.status_code != 200:
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
+        response.raise_for_status()
+
+    data = response.json()
+
+    # API-Ninjas returns `updated` (not timestamp)
+    df = pd.DataFrame([{
+        "date": pd.to_datetime(data["updated"], unit="s"),
+        "price": float(data["price"])
+    }])
+
+    print(f"Fetching live price for {live_symbol}...")
+    return df

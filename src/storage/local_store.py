@@ -1,23 +1,34 @@
 import pandas as pd
-from datetime import datetime
 import os
+from datetime import date
 
-def save_result(predicted: float, actual: float, error: float):
-    """
-    Save daily prediction result locally
-    """
-    file_path = "results.csv"
+RESULTS_FILE = "data/results.csv"
 
-    data = {
-        "date": [datetime.today().strftime("%Y-%m-%d")],
-        "predicted_price": [predicted],
-        "actual_price": [actual],
-        "error": [error]
+
+def save_result(asset, predicted_price, actual_price, error):
+    today = date.today()
+
+    new_row = {
+        "date": today,
+        "asset": asset,
+        "predicted_price": predicted_price,
+        "actual_price": actual_price,
+        "error": error
     }
 
-    df = pd.DataFrame(data)
+    if os.path.exists(RESULTS_FILE):
+        df = pd.read_csv(RESULTS_FILE)
+        df["date"] = pd.to_datetime(df["date"]).dt.date
 
-    if os.path.exists(file_path):
-        df.to_csv(file_path, mode="a", header=False, index=False)
+        # Remove existing record for same date & asset
+        df = df[
+            ~((df["date"] == today) & (df["asset"] == asset))
+        ]
+
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     else:
-        df.to_csv(file_path, index=False)
+        df = pd.DataFrame([new_row])
+    df = df.sort_values(["date", "asset"])
+
+
+    df.to_csv(RESULTS_FILE, index=False)
