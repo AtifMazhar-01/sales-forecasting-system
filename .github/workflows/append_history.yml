@@ -1,0 +1,30 @@
+name: Weekly Validated History Append
+
+on:
+  workflow_dispatch:   # manual trigger (for safety)
+  schedule:
+    - cron: '0 2 * * 0'   # Every Sunday at 02:00 UTC
+
+jobs:
+  append-history:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run validated history append
+        run: poetry run python -m scripts.append_validated_history
