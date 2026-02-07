@@ -1,18 +1,18 @@
+import os
 import pandas as pd
+
 from src.config.settings import ASSET_CONFIG
 from src.data.history_loader import load_historical_data
-import os
-
-if not os.path.exists(RESULTS_FILE):
-    print("No results.csv found. Skipping history append.")
-    return
-
 
 RESULTS_FILE = "data/results.csv"
-HISTORICAL_FILE = "data/commodity_futures.csv"
 
 
 def append_validated_history():
+    # safe exit if no results yet
+    if not os.path.exists(RESULTS_FILE):
+        print("No results.csv found. Skipping history append.")
+        return
+
     print("Starting batch history append...")
 
     results_df = pd.read_csv(RESULTS_FILE)
@@ -41,8 +41,10 @@ def append_validated_history():
         )
 
         # Append and sort
-        updated_hist = pd.concat([hist_df, asset_actuals], ignore_index=True)
-        updated_hist = updated_hist.sort_values("date")
+        updated_hist = pd.concat(
+            [hist_df, asset_actuals],
+            ignore_index=True
+        ).sort_values("date")
 
         # Save per-asset history (safe approach)
         output_file = f"data/history_{asset_name}.csv"
