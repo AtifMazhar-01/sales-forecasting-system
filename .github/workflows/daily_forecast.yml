@@ -2,43 +2,35 @@ name: Daily Commodity Forecast
 
 on:
   schedule:
-    # Runs every day at 6:00 UTC
+    # Runs every day at 06:00 UTC
     - cron: "0 6 * * *"
 
-  workflow_dispatch:  # allows manual run from GitHub UI
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   run-forecast:
     runs-on: ubuntu-latest
 
     steps:
-      #  Checkout code
+      # 1. Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Python
+      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      #  Install dependencies
+      # 3. Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Run daily forecast
+      # 4. Run daily forecast
       - name: Run daily forecast
         env:
           API_NINJAS_KEY: ${{ secrets.API_NINJAS_KEY }}
         run: |
           python src/main.py
-
-      #  Upload results.csv as artifact
-      - name: Upload results artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-csv
-          path: data/results.csv
-          if-no-files-found: warn
