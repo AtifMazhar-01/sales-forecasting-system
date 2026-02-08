@@ -1,58 +1,76 @@
 import os
 import pandas as pd
+from supabase import create_client
+from dotenv import load_dotenv
 
 from src.config.settings import ASSET_CONFIG
-from src.data.history_loader import load_historical_data
 
-RESULTS_FILE = "data/results.csv"
+# Load environment variables
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Supabase credentials not found")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def append_validated_history():
-    # safe exit if no results yet
-    if not os.path.exists(RESULTS_FILE):
-        print("No results.csv found. Skipping history append.")
-        return
+    print("Starting weekly validated history append...")
 
-    print("Starting batch history append...")
+    for asset in ASSET_CONFIG.keys():
+        print(f"\nProcessing asset: {asset}")
 
-    results_df = pd.read_csv(RESULTS_FILE)
-    results_df["date"] = pd.to_datetime(results_df["date"])
+        # 1. Get latest date already in price_history
+        history_resp = (
+            supabase
+            .table("price_history")
+            .select("date")
+            .eq("asset", asset)
+            .order("date", desc=True)
+            .limit(1)
+            .execute()
+        )
 
-    for asset_name, asset_info in ASSET_CONFIG.items():
-        print(f"\nProcessing asset: {asset_name}")
+        last_history_date = None
+        if history_resp.data:
+            last_history_date = history_resp.data[0]["date"]
 
-        # Load existing historical data
-        hist_df = load_historical_data(asset_name, asset_info)
-        last_hist_date = hist_df["date"].max()
+        # 2. Fetch validated actual prices from forecast_results
+        query = (
+            supabase
+            .table("forecast_results")
+            .select("date, actual_price")
+            .eq("asset", asset)
+        )
 
-        # Filter validated actuals
-        asset_actuals = results_df[
-            (results_df["asset"] == asset_name) &
-            (results_df["date"] > last_hist_date)
-        ][["date", "actual_price"]]
+        if last_history_date:
+            query = query.gt("date", last_history_date)
 
-        if asset_actuals.empty:
+        results_resp = query.execute()
+
+        if not results_resp.data:
             print("No new validated data to append.")
             continue
 
-        # Rename to match historical format
-        asset_actuals = asset_actuals.rename(
-            columns={"actual_price": "price"}
-        )
+        # 3. Prepare rows for insertion
+        rows = []
+        for row in results_resp.data:
+            rows.append({
+                "date": row["date"],
+                "asset": asset,
+                "price": row["actual_price"],
+                "source": "validated_forecast"
+            })
 
-        # Append and sort
-        updated_hist = pd.concat(
-            [hist_df, asset_actuals],
-            ignore_index=True
-        ).sort_values("date")
+        # 4. Insert into price_history
+        supabase.table("price_history").insert(rows).execute()
 
-        # Save per-asset history (safe approach)
-        output_file = f"data/history_{asset_name}.csv"
-        updated_hist.to_csv(output_file, index=False)
+        print(f"Appended {len(rows)} rows to price_history")
 
-        print(f"Updated history saved to {output_file}")
-
-    print("\nBatch append completed.")
+    print("\nWeekly append completed.")
 
 
 if __name__ == "__main__":

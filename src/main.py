@@ -1,18 +1,20 @@
 from config.settings import ASSET_CONFIG
 
 from data.fetcher import fetch_daily_prices
-from data.history_loader import load_historical_data
+from data.cloud_history_loader import load_cloud_history
 from data.merger import merge_historical_and_live
 
 from processing.cleaner import clean_time_series
 from model.forecaster import train_and_predict
 from evaluation.metrics import calculate_error
-from storage.local_store import save_result
+from storage.cloud_store import save_result
 from dashboard.app import show_dashboard
 from dashboard.app import show_error_history
 
 
 def main():
+    print("Using cloud storage for results")
+
     print("System setup started")
     print("Assets to process:", list(ASSET_CONFIG.keys()))
 
@@ -22,10 +24,7 @@ def main():
         print("==============================")
 
         # 1. Load historical data
-        historical_df = load_historical_data(
-            asset_name=asset_name,
-            asset_config=asset_info
-        )
+        historical_df = load_cloud_history(asset_name)
 
         # 2. Fetch live price
         live_df = fetch_daily_prices(

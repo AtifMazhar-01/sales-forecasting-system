@@ -1,5 +1,9 @@
+
+streamlit
 pandas
-requests
+plotly
+supabase
 python-dotenv
 prophet
 cmdstanpy
+requests
