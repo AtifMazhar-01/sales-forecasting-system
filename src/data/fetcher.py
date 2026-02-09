@@ -12,8 +12,13 @@ BASE_URL = "https://api.api-ninjas.com/v1/commodityprice"
 def fetch_daily_prices(live_symbol):
     """
     Fetch latest price for a given commodity symbol from API-Ninjas.
-    Returns DataFrame with columns: date, price
+
+    Returns:
+        pd.DataFrame with columns: date, price
+        OR
+        None (if API fails / asset not available)
     """
+
     headers = {
         "X-Api-Key": API_KEY
     }
@@ -22,21 +27,23 @@ def fetch_daily_prices(live_symbol):
         "name": live_symbol
     }
 
+    print(f"Fetching live price for {live_symbol}...")
+
     response = requests.get(BASE_URL, headers=headers, params=params)
 
-    # Debug visibility (important while learning)
+    # ---- HARD SAFETY (DO NOT BREAK PIPELINE) ----
     if response.status_code != 200:
+        print(f"[WARN] Live price fetch failed for {live_symbol}")
         print("Status Code:", response.status_code)
         print("Response Text:", response.text)
-        response.raise_for_status()
+        return None   #  CRITICAL: do NOT raise exception
 
     data = response.json()
 
-    # API-Ninjas returns `updated` (not timestamp)
+    # API-Ninjas returns `updated` as UNIX timestamp
     df = pd.DataFrame([{
         "date": pd.to_datetime(data["updated"], unit="s"),
         "price": float(data["price"])
     }])
 
-    print(f"Fetching live price for {live_symbol}...")
     return df

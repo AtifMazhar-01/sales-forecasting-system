@@ -1,3 +1,5 @@
+import pandas as pd
+
 from config.settings import ASSET_CONFIG
 
 from data.fetcher import fetch_daily_prices
@@ -8,13 +10,10 @@ from processing.cleaner import clean_time_series
 from model.forecaster import train_and_predict
 from evaluation.metrics import calculate_error
 from storage.cloud_store import save_result
-from dashboard.app import show_dashboard
-from dashboard.app import show_error_history
 
 
 def main():
     print("Using cloud storage for results")
-
     print("System setup started")
     print("Assets to process:", list(ASSET_CONFIG.keys()))
 
@@ -23,7 +22,7 @@ def main():
         print(f"Processing asset: {asset_name}")
         print("==============================")
 
-        # 1. Load historical data
+        # 1. Load historical data from cloud (Supabase)
         historical_df = load_cloud_history(asset_name)
 
         # 2. Fetch live price
@@ -31,7 +30,16 @@ def main():
             live_symbol=asset_info["live_symbol"]
         )
 
-        # 3. Merge historical + live data
+        # 2.a FALLBACK if API is blocked / premium-only
+        if live_df is None:
+            print(f"[INFO] Using fallback price for {asset_name}")
+
+            live_df = historical_df.tail(1)[["date", "price"]].copy()
+            live_df["date"] = (
+                pd.to_datetime(live_df["date"]) + pd.Timedelta(days=1)
+            )
+
+        # 3. Merge historical + live
         combined_df = merge_historical_and_live(
             historical_df,
             live_df
@@ -47,7 +55,7 @@ def main():
         actual_price = clean_df["price"].iloc[-1]
         error = calculate_error(actual_price, prediction)
 
-        # 7. Store result
+        # 7. Store result in Supabase
         save_result(
             asset=asset_name,
             predicted_price=prediction,
@@ -57,10 +65,6 @@ def main():
 
         print(f"Prediction saved for {asset_name}")
 
-    # 8. Show dashboard after all assets
-    show_dashboard()
-    show_error_history(last_n=10)
-    
     print("\nSystem run completed")
 
 
